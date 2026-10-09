@@ -1,13 +1,21 @@
 [project]
 name = "memengine"
 version = "0.1.0"
-description = "Add your description here"
+description = "Local-first memory engine for AI chatbots"
 readme = "README.md"
 authors = [
     { name = "Om", email = "omsupe15@gmail.com" }
 ]
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "fastapi>=0.143.0",
+    "numpy>=2.5.3",
+    "pydantic>=2.14.0",
+    "rank-bm25>=0.2.2",
+    "rich>=15.0.0",
+    "sentence-transformers>=6.1.0",
+    "uvicorn[standard]>=0.54.0",
+]
 
 [project.scripts]
 memengine = "memengine:main"
@@ -15,3 +23,12 @@ memengine = "memengine:main"
 [build-system]
 requires = ["uv_build>=0.12.15,<0.13.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
