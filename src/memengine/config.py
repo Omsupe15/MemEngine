@@ -19,6 +19,9 @@ class Settings:
     db_path: str = field(
         default_factory=lambda: os.getenv("MEMENGINE_DB_PATH", "memengine.db")
     )
+    chroma_path: str = field(
+        default_factory=lambda: os.getenv("MEMENGINE_CHROMA_PATH", "chroma_db")
+    )
 
     # Embedding settings
     embedding_model_name: str = field(
@@ -61,6 +64,11 @@ class Settings:
     def resolved_db_path(self) -> Path:
         """Return absolute Path for database file."""
         return Path(self.db_path).resolve()
+
+    @property
+    def resolved_chroma_path(self) -> Path:
+        """Return absolute Path for ChromaDB directory."""
+        return Path(self.chroma_path).resolve()
 
 
 # Singleton instance
