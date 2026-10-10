@@ -15,6 +15,8 @@ dependencies = [
     "rank-bm25>=0.2.2",
     "rich>=15.0.0",
     "sentence-transformers>=6.1.0",
+    "streamlit>=1.65.0",
+    "torchvision>=0.29.1",
     "uvicorn[standard]>=0.54.0",
 ]
 

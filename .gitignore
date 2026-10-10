@@ -2,3 +2,5 @@
 __pycache__
 .pytest_cache
 ai_agent_choices.md
+memengine.db
+chroma_db
