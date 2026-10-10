@@ -2,8 +2,8 @@
 
 from datetime import datetime, timezone
 import pytest
-from memengine.config import Settings, get_settings
-from memengine.schemas import (
+from app.config import Settings, get_settings
+from app.schemas import (
     DeleteResponse,
     IngestRequest,
     IngestResponse,
@@ -95,9 +95,12 @@ def test_recall_request_and_response():
     assert resp.memories[0].text == "Project deadline is November 2."
 
 
-def test_app_compatibility_import():
-    import app.config as app_config
-    import app.schemas as app_schemas
+def test_app_exports():
+    import app
 
-    assert app_config.get_settings().default_similarity_threshold == 0.52
-    assert app_schemas.MemoryType.FACT == MemoryType.FACT
+    assert hasattr(app, "settings")
+    assert hasattr(app, "MemoryRecord")
+    assert hasattr(app, "StorageManager")
+    assert hasattr(app, "ConflictResolver")
+    assert hasattr(app, "RecallEngine")
+

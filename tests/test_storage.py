@@ -4,10 +4,10 @@ from datetime import datetime, timezone
 import pytest
 import numpy as np
 
-from memengine.embeddings import EmbeddingEngine
-from memengine.schemas import MemoryRecord, MemoryStatus, MemoryType
-from memengine.storage import SQLiteStorage, StorageManager
-from memengine.vector_store import ChromaVectorStore
+from app.embeddings import EmbeddingEngine
+from app.schemas import MemoryRecord, MemoryStatus, MemoryType
+from app.storage import SQLiteStorage, StorageManager
+from app.vector_store import ChromaVectorStore
 
 
 @pytest.fixture
