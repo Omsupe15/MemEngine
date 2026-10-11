@@ -50,6 +50,12 @@ UPDATE_CUES = [
     r"\breplaced by\b",
     r"\bcorrection\b",
     r"\bupdate\b",
+    r"\bmigrated\b",
+    r"\bupgraded\b",
+    r"\btransitioned\b",
+    r"\brescheduled\b",
+    r"\bstopped\b",
+    r"\bwait,?\b",
 ]
 
 
@@ -169,7 +175,7 @@ class IngestionEngine:
         if m:
             val = m.group(1).strip()
             return ExtractedCandidate(
-                text=f"User is building a {val} app.",
+                text=f"User is building a {val} app (framework: {val}).",
                 type=MemoryType.PROJECT_DETAIL,
                 subject="project",
                 attribute="framework",
@@ -262,7 +268,21 @@ class IngestionEngine:
                 is_update_cue=is_update,
             )
 
-        # 9. Generic durable personal declarations: e.g. "I live in Berlin." or "My name is Alice."
+        # 9. Relocation / Moved to
+        m = re.search(r"(?:i\s+recently\s+moved\s+to|i\s+moved\s+to|i\s+relocated\s+to)\s+([^.!,]+)", cleaned, re.IGNORECASE)
+        if m:
+            val = m.group(1).strip()
+            return ExtractedCandidate(
+                text=f"User lives in {val}.",
+                type=MemoryType.FACT,
+                subject="location",
+                attribute="city",
+                value=val,
+                importance=0.85,
+                is_update_cue=True,
+            )
+
+        # 10. Generic durable personal declarations: e.g. "I live in Berlin." or "My name is Alice."
         m = re.search(r"i\s+live\s+in\s+([^.!,]+)", cleaned, re.IGNORECASE)
         if m:
             val = m.group(1).strip()
@@ -289,16 +309,252 @@ class IngestionEngine:
                 is_update_cue=is_update,
             )
 
+        # 11. Career role & transitions
+        m = re.search(r"(?:i\s+recently\s+transitioned\s+to\s+(?:an?|the)?)\s*([^.!,]+?)(?:\s+role)?(?:[.!,]|$)", cleaned, re.IGNORECASE)
+        if m:
+            val = m.group(1).strip()
+            return ExtractedCandidate(
+                text=f"User works as {val} (job role: {val}).",
+                type=MemoryType.FACT,
+                subject="career",
+                attribute="role",
+                value=val,
+                importance=0.85,
+                is_update_cue=True,
+            )
+
         m = re.search(r"i\s+work\s+as\s+(?:a|an)?\s*([^.!,]+)", cleaned, re.IGNORECASE)
         if m:
             val = m.group(1).strip()
             return ExtractedCandidate(
-                text=f"User works as {val}.",
+                text=f"User works as {val} (job role: {val}).",
                 type=MemoryType.FACT,
                 subject="career",
                 attribute="role",
                 value=val,
                 importance=0.8,
+                is_update_cue=is_update,
+            )
+
+        # 12. Shell preference
+        m = re.search(r"(?:my\s+(?:default\s+)?shell\s+is|my\s+shell\s+is)\s+([^.!,]+)", cleaned, re.IGNORECASE)
+        if m:
+            val = m.group(1).strip()
+            return ExtractedCandidate(
+                text=f"User's shell is {val}.",
+                type=MemoryType.FACT,
+                subject="shell",
+                attribute="user_shell",
+                value=val,
+                importance=0.8,
+                is_update_cue=is_update,
+            )
+
+        # 13. Hardware / Laptop
+        m = re.search(r"(?:my\s+laptop\s+is|my\s+computer\s+is)\s+(?:a|an)?\s*([^.!,]+)", cleaned, re.IGNORECASE)
+        if m:
+            val = m.group(1).strip()
+            return ExtractedCandidate(
+                text=f"User's laptop is {val}.",
+                type=MemoryType.FACT,
+                subject="hardware",
+                attribute="laptop",
+                value=val,
+                importance=0.8,
+                is_update_cue=is_update,
+            )
+
+        # 14. Primary language
+        m = re.search(r"(?:my\s+primary\s+programming\s+language\s+is|i\s+code\s+mainly\s+in|i\s+code\s+in)\s+([^.!,]+)", cleaned, re.IGNORECASE)
+        if m:
+            val = m.group(1).strip()
+            return ExtractedCandidate(
+                text=f"User codes in {val}.",
+                type=MemoryType.FACT,
+                subject="language",
+                attribute="primary",
+                value=val,
+                importance=0.85,
+                is_update_cue=is_update,
+            )
+
+        # 15. Backend service
+        m = re.search(r"(?:our\s+backend\s+(?:service\s+)?is\s+written\s+in|we\s+use\s+([^.!,]+)\s+for\s+backend)", cleaned, re.IGNORECASE)
+        if m:
+            val = (m.group(1) or m.group(0)).strip()
+            if "written in" in cleaned.lower():
+                val = cleaned.split("written in")[-1].strip().rstrip(".!")
+            return ExtractedCandidate(
+                text=f"Backend is written in {val}.",
+                type=MemoryType.PROJECT_DETAIL,
+                subject="backend",
+                attribute="framework",
+                value=val,
+                importance=0.8,
+                is_update_cue=is_update,
+            )
+
+        # 16. Code host / Repo
+        m = re.search(r"(?:we\s+host\s+our\s+repository\s+on|our\s+repo\s+is\s+on)\s+([^.!,]+)", cleaned, re.IGNORECASE)
+        if m:
+            val = m.group(1).strip()
+            return ExtractedCandidate(
+                text=f"Repository is hosted on {val}.",
+                type=MemoryType.PROJECT_DETAIL,
+                subject="repo",
+                attribute="host",
+                value=val,
+                importance=0.75,
+                is_update_cue=is_update,
+            )
+
+        # 17. Cloud provider
+        m = re.search(r"(?:we\s+deploy\s+our\s+infrastructure\s+on|our\s+infrastructure\s+is\s+on)\s+([^.!,]+)", cleaned, re.IGNORECASE)
+        if m:
+            val = m.group(1).strip()
+            return ExtractedCandidate(
+                text=f"Infrastructure deployed on {val}.",
+                type=MemoryType.PROJECT_DETAIL,
+                subject="cloud",
+                attribute="provider",
+                value=val,
+                importance=0.8,
+                is_update_cue=is_update,
+            )
+
+        # 18. Framework switch / Database migration
+        m = re.search(r"(?:we\s+switched\s+(?:the\s+)?(?:frontend\s+)?framework\s+to)\s+([^.!,]+)", cleaned, re.IGNORECASE)
+        if m:
+            val = m.group(1).strip()
+            return ExtractedCandidate(
+                text=f"User is building a {val} app (framework: {val}).",
+                type=MemoryType.PROJECT_DETAIL,
+                subject="project",
+                attribute="framework",
+                value=val,
+                importance=0.85,
+                is_update_cue=True,
+            )
+
+        m = re.search(r"(?:we\s+migrated\s+our\s+database\s+to|we\s+switched\s+our\s+database\s+to)\s+([^.!,]+)", cleaned, re.IGNORECASE)
+        if m:
+            val = m.group(1).strip()
+            return ExtractedCandidate(
+                text=f"User prefers {val}.",
+                type=MemoryType.PREFERENCE,
+                subject="database",
+                attribute="preference",
+                value=val,
+                importance=0.85,
+                is_update_cue=True,
+            )
+
+        # 19. Contact / Email & Correction
+        m = re.search(r"(?:correction:?\s*)?(?:my\s+email(?:\s+address)?\s+is)\s+([^\s,;!]+)", cleaned, re.IGNORECASE)
+        if m:
+            val = m.group(1).strip().rstrip(".!,;")
+            return ExtractedCandidate(
+                text=f"User's email is {val}.",
+                type=MemoryType.FACT,
+                subject="contact",
+                attribute="email",
+                value=val,
+                importance=0.85,
+                is_update_cue=is_update or "correction" in cleaned.lower(),
+            )
+
+        # 20. Beverage / Coffee / Tea
+        m = re.search(r"(?:actually,?\s*)?(?:i\s+stopped\s+drinking\s+[^.!,]+\s+and\s+drink\s+([^.!,]+)\s+now)", cleaned, re.IGNORECASE)
+        if m:
+            val = m.group(1).strip()
+            return ExtractedCandidate(
+                text=f"User drinks {val}.",
+                type=MemoryType.PREFERENCE,
+                subject="beverage",
+                attribute="drink",
+                value=val,
+                importance=0.75,
+                is_update_cue=True,
+            )
+
+        m = re.search(r"(?:i\s+drink|i\s+love\s+drinking)\s+([^.!,]+)", cleaned, re.IGNORECASE)
+        if m:
+            val = m.group(1).strip()
+            return ExtractedCandidate(
+                text=f"User drinks {val}.",
+                type=MemoryType.PREFERENCE,
+                subject="beverage",
+                attribute="drink",
+                value=val,
+                importance=0.7,
+                is_update_cue=is_update,
+            )
+
+        # 21. API Port
+        m = re.search(r"(?:wait,?\s*)?(?:we\s+changed\s+the\s+api\s+port\s+to)\s+([^.!,]+)", cleaned, re.IGNORECASE)
+        if m:
+            val = m.group(1).strip()
+            return ExtractedCandidate(
+                text=f"API runs on port {val}.",
+                type=MemoryType.PROJECT_DETAIL,
+                subject="api",
+                attribute="port",
+                value=val,
+                importance=0.8,
+                is_update_cue=True,
+            )
+
+        m = re.search(r"(?:the\s+api\s+runs\s+on\s+port|api\s+port\s+is)\s+([^.!,]+)", cleaned, re.IGNORECASE)
+        if m:
+            val = m.group(1).strip()
+            return ExtractedCandidate(
+                text=f"API runs on port {val}.",
+                type=MemoryType.PROJECT_DETAIL,
+                subject="api",
+                attribute="port",
+                value=val,
+                importance=0.75,
+                is_update_cue=is_update,
+            )
+
+        # 22. Release reschedule
+        m = re.search(r"(?:actually,?\s*)?(?:the\s+release\s+is\s+rescheduled\s+to)\s+([^.!,]+)", cleaned, re.IGNORECASE)
+        if m:
+            val = m.group(1).strip()
+            return ExtractedCandidate(
+                text=f"Release target is {val}.",
+                type=MemoryType.PROJECT_DETAIL,
+                subject="release",
+                attribute="target",
+                value=val,
+                importance=0.85,
+                is_update_cue=True,
+            )
+
+        m = re.search(r"(?:the\s+release\s+is\s+targeted\s+for|release\s+target\s+is)\s+([^.!,]+)", cleaned, re.IGNORECASE)
+        if m:
+            val = m.group(1).strip()
+            return ExtractedCandidate(
+                text=f"Release target is {val}.",
+                type=MemoryType.PROJECT_DETAIL,
+                subject="release",
+                attribute="target",
+                value=val,
+                importance=0.8,
+                is_update_cue=is_update,
+            )
+
+        # 23. Formatting / Indentation
+        m = re.search(r"i\s+prefer\s+(tabs|spaces)\s+(?:over\s+(?:tabs|spaces))?(?:\s+for\s+indentation)?", cleaned, re.IGNORECASE)
+        if m:
+            val = m.group(1).strip()
+            return ExtractedCandidate(
+                text=f"User prefers {val} for indentation.",
+                type=MemoryType.PREFERENCE,
+                subject="formatting",
+                attribute="indentation",
+                value=val,
+                importance=0.7,
                 is_update_cue=is_update,
             )
 

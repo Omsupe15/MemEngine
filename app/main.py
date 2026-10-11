@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Optional
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
@@ -58,7 +58,17 @@ async def serve_dashboard():
     index_file = STATIC_DIR / "index.html"
     if index_file.exists():
         return FileResponse(index_file)
-    return {"message": "MemEngine API is running. Web UI not available."}
+    return HTMLResponse(
+        """<!DOCTYPE html>
+<html>
+<head><title>MemEngine</title></head>
+<body>
+<h1>MemEngine API</h1>
+<p>MemEngine API is online. Interactive UI is available via Streamlit: <code>uv run streamlit run streamlit_app.py</code></p>
+<p>API documentation available at <a href="/docs">/docs</a>.</p>
+</body>
+</html>"""
+    )
 
 
 @app.get("/health", tags=["System"])

@@ -27,6 +27,12 @@ class SQLiteStorage:
 
     def _get_connection(self) -> sqlite3.Connection:
         """Create a connection with row factory enabled."""
+        if self.db_path == ":memory:":
+            if getattr(self, "_memory_conn", None) is None:
+                self._memory_conn = sqlite3.connect(":memory:", check_same_thread=False)
+                self._memory_conn.row_factory = sqlite3.Row
+                self._memory_conn.execute("PRAGMA foreign_keys = ON;")
+            return self._memory_conn
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys = ON;")

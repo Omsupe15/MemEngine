@@ -18,6 +18,8 @@ from app.retrieval import get_recall_engine
 from app.schemas import IngestRequest, RecallRequest
 from app.storage import get_storage_manager
 from app.updates import get_conflict_resolver
+from app.evaluator import EvaluationSummary, run_full_evaluation
+from scripts.benchmark import run_latency_benchmark
 
 # Page Configuration
 st.set_page_config(
@@ -124,11 +126,12 @@ st.markdown(
 )
 
 # Navigation Tabs
-tab_recall, tab_remember, tab_ledger, tab_workflow = st.tabs([
+tab_recall, tab_remember, tab_ledger, tab_workflow, tab_evaluation = st.tabs([
     "🔍 Recall & Semantic Search",
     "📥 Ingest & Conflict Resolution",
     "📚 Memory Ledger & Lineage",
     "🧪 Automated Canonical Test",
+    "📊 Benchmark & Evaluation Report",
 ])
 
 # -------------------------------------------------------------
@@ -348,3 +351,139 @@ with tab_workflow:
             if pass_q1 and pass_q2 and pass_q3:
                 st.balloons()
                 st.success("🎉 All canonical tests passed with 100% compliance!")
+
+# -------------------------------------------------------------
+# TAB 5: AUTOMATED BENCHMARK & EVALUATION REPORT
+# -------------------------------------------------------------
+with tab_evaluation:
+    st.subheader("📊 Comprehensive Benchmark Suite & Evaluation Report")
+    st.caption("Evaluates 35 categorized test cases covering Direct Facts, Preferences, Project Details, Updates, Contradictions, Multi-relevant queries, and Unknown Rejection.")
+
+    col_b1, col_b2 = st.columns([2, 1])
+    with col_b1:
+        run_bench = st.button("▶️ Run Full 35-Case Benchmark Suite", type="primary", use_container_width=True)
+    with col_b2:
+        run_lat = st.button("⚡ Profile Latency (p50 / p95 / p99)", use_container_width=True)
+
+    # Run Benchmark if triggered
+    if run_bench:
+        progress_bar = st.progress(0, text="Initializing evaluation harness...")
+        status_text = st.empty()
+
+        def update_progress(idx, total, res):
+            progress_bar.progress(idx / total, text=f"Evaluating [{idx}/{total}]: {res.case_id} ({res.category})")
+            status_text.caption(f"Last test: **{res.case_id}** &rarr; {'✅ PASS' if res.passed else '❌ FAIL'}: {res.query}")
+
+        summary = run_full_evaluation(progress_callback=update_progress)
+        progress_bar.progress(1.0, text="Benchmark complete!")
+        status_text.empty()
+        st.session_state["eval_summary"] = summary
+        st.success(f"🎉 Benchmark complete! Overall Accuracy: **{summary.overall_accuracy:.1f}%** ({summary.passed_cases}/{summary.total_cases} cases passed)")
+
+    # Display Benchmark Summary if present in session state
+    if "eval_summary" in st.session_state:
+        summary: EvaluationSummary = st.session_state["eval_summary"]
+
+        st.markdown("### 🏆 Overall Benchmark Metrics")
+        m_col1, m_col2, m_col3, m_col4, m_col5, m_col6 = st.columns(6)
+        m_col1.metric("Overall Accuracy", f"{summary.overall_accuracy:.1f}%")
+        m_col2.metric("Recall@5", f"{summary.recall_at_5:.1f}%")
+        m_col3.metric("Top-1 Accuracy", f"{summary.top_1_accuracy:.1f}%")
+        m_col4.metric("Unknown Rejection", f"{summary.unknown_rejection_rate:.1f}%")
+        m_col5.metric("Supersede Integrity", f"{summary.supersede_integrity_rate:.1f}%")
+        m_col6.metric("Avg Latency", f"{summary.avg_latency_ms:.1f} ms")
+
+        st.divider()
+
+        # Category Breakdown
+        st.markdown("### 📂 Performance by Category")
+        c_left, c_right = st.columns([3, 2])
+
+        cat_rows = []
+        for cat, stats in summary.category_metrics.items():
+            cat_rows.append({
+                "Category": cat,
+                "Passed": stats["passed"],
+                "Total": stats["total"],
+                "Accuracy (%)": stats["accuracy"],
+            })
+        df_cats = pd.DataFrame(cat_rows)
+
+        with c_left:
+            st.dataframe(df_cats, use_container_width=True, hide_index=True)
+        with c_right:
+            st.bar_chart(df_cats.set_index("Category")["Accuracy (%)"], color="#6366f1")
+
+        st.divider()
+
+        # Case-by-case Interactive Diagnostic Inspector
+        st.markdown("### 🔍 Case-by-Case Diagnostic Inspector")
+        filter_col1, filter_col2 = st.columns(2)
+        with filter_col1:
+            all_categories = ["All"] + list(summary.category_metrics.keys())
+            selected_cat = st.selectbox("Filter Category:", all_categories)
+        with filter_col2:
+            status_filter = st.selectbox("Filter Status:", ["All", "Passed Only", "Failed Only"])
+
+        filtered_cases = summary.case_results
+        if selected_cat != "All":
+            filtered_cases = [c for c in filtered_cases if c.category == selected_cat]
+        if status_filter == "Passed Only":
+            filtered_cases = [c for c in filtered_cases if c.passed]
+        elif status_filter == "Failed Only":
+            filtered_cases = [c for c in filtered_cases if not c.passed]
+
+        st.caption(f"Showing {len(filtered_cases)} of {summary.total_cases} test cases:")
+
+        for case_res in filtered_cases:
+            badge_color = "badge-active" if case_res.passed else "badge-superseded"
+            badge_text = "PASS" if case_res.passed else "FAIL"
+            with st.container(border=True):
+                h1, h2 = st.columns([4, 1])
+                with h1:
+                    st.markdown(
+                        f'<span class="badge-pill {badge_color}">{badge_text}</span>'
+                        f'<span class="badge-pill badge-type">{case_res.category}</span>'
+                        f'<code>{case_res.case_id}</code>: **{case_res.description}**',
+                        unsafe_allow_html=True,
+                    )
+                    st.markdown(f"**Query:** *\"{case_res.query}\"*")
+                    st.caption(f"Retrieved: {case_res.retrieved_count} memories | Top score: {case_res.top_score or 0.0:.3f} | Latency: {case_res.latency_ms}ms")
+                    if case_res.top_text:
+                        st.markdown(f"**Top Result:** `{case_res.top_text}`")
+                    st.info(f"Verdict: {case_res.notes}")
+                with h2:
+                    if case_res.passed:
+                        st.success("Verified ✅")
+                    else:
+                        st.error("Needs Review ❌")
+
+    # Run Latency Benchmark if triggered
+    if run_lat:
+        with st.spinner("Measuring p50, p95, and p99 latency across 100 sample operations..."):
+            ing_p, rec_p = run_latency_benchmark(n_samples=100)
+            st.session_state["lat_profiles"] = (ing_p, rec_p)
+
+    if "lat_profiles" in st.session_state:
+        ing_p, rec_p = st.session_state["lat_profiles"]
+        st.markdown("### ⚡ Latency & Throughput Benchmark (100 Samples)")
+
+        lat_col1, lat_col2 = st.columns(2)
+        with lat_col1:
+            with st.container(border=True):
+                st.markdown("#### 📥 Ingestion & Conflict Detection")
+                p1, p2, p3 = st.columns(3)
+                p1.metric("p50 Latency", f"{ing_p.p50_ms:.2f} ms")
+                p2.metric("p95 Latency", f"{ing_p.p95_ms:.2f} ms")
+                p3.metric("p99 Latency", f"{ing_p.p99_ms:.2f} ms")
+                st.caption(f"Mean: {ing_p.mean_ms:.2f} ms | Throughput: **{ing_p.throughput_ops_sec:.1f} ops/sec**")
+
+        with lat_col2:
+            with st.container(border=True):
+                st.markdown("#### 🔍 Hybrid Semantic Recall")
+                r1, r2, r3 = st.columns(3)
+                r1.metric("p50 Latency", f"{rec_p.p50_ms:.2f} ms")
+                r2.metric("p95 Latency", f"{rec_p.p95_ms:.2f} ms")
+                r3.metric("p99 Latency", f"{rec_p.p99_ms:.2f} ms")
+                st.caption(f"Mean: {rec_p.mean_ms:.2f} ms | Throughput: **{rec_p.throughput_ops_sec:.1f} ops/sec**")
+

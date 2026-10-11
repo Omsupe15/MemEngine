@@ -101,7 +101,10 @@ class RecallEngine:
             s_bm25 = bm25_scores.get(rec.id, 0.0)
             importance_mod = beta * (rec.importance - 0.5)
 
-            hybrid_score = (alpha * s_sem) + ((1.0 - alpha) * s_bm25) + importance_mod
+            # Hybrid combination: semantic similarity forms the baseline, BM25 provides lexical boost
+            lexical_boost = (1.0 - alpha) * s_bm25
+            base_score = max(s_sem, (alpha * s_sem) + lexical_boost)
+            hybrid_score = base_score + importance_mod
             hybrid_score = max(0.0, min(1.0, hybrid_score))
 
             if hybrid_score >= threshold:

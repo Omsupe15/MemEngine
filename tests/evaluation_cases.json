@@ -1,0 +1,452 @@
+[
+  {
+    "id": "fact_01",
+    "category": "Direct Facts",
+    "description": "User operating system declaration",
+    "conversation": ["I use Arch Linux."],
+    "query": "What OS does the user use?",
+    "expected_positive": "Arch Linux",
+    "expected_negative": null,
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "fact_02",
+    "category": "Direct Facts",
+    "description": "User default shell",
+    "conversation": ["My default shell is zsh."],
+    "query": "What shell does the user use?",
+    "expected_positive": "zsh",
+    "expected_negative": null,
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "fact_03",
+    "category": "Direct Facts",
+    "description": "User primary laptop hardware",
+    "conversation": ["My laptop is a ThinkPad X1 Carbon."],
+    "query": "What laptop model does the user have?",
+    "expected_positive": "ThinkPad",
+    "expected_negative": null,
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "fact_04",
+    "category": "Direct Facts",
+    "description": "Primary programming language",
+    "conversation": ["My primary programming language is Python."],
+    "query": "What programming language does the user code in?",
+    "expected_positive": "Python",
+    "expected_negative": null,
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "fact_05",
+    "category": "Direct Facts",
+    "description": "User living location",
+    "conversation": ["I live in Berlin."],
+    "query": "Where does the user live?",
+    "expected_positive": "Berlin",
+    "expected_negative": null,
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "pref_01",
+    "category": "User Preferences",
+    "description": "Relational database preference",
+    "conversation": ["I prefer PostgreSQL over MySQL."],
+    "query": "Which database does the user prefer?",
+    "expected_positive": "PostgreSQL",
+    "expected_negative": null,
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "pref_02",
+    "category": "User Preferences",
+    "description": "Code editor preference",
+    "conversation": ["My favorite editor is Neovim."],
+    "query": "What is the user's preferred code editor?",
+    "expected_positive": "Neovim",
+    "expected_negative": null,
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "pref_03",
+    "category": "User Preferences",
+    "description": "Editor and IDE visual theme",
+    "conversation": ["I prefer dark mode."],
+    "query": "Does the user like dark mode or light mode?",
+    "expected_positive": "dark mode",
+    "expected_negative": null,
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "pref_04",
+    "category": "User Preferences",
+    "description": "Daily coffee beverage preference",
+    "conversation": ["I drink espresso."],
+    "query": "What kind of coffee does the user drink?",
+    "expected_positive": "espresso",
+    "expected_negative": null,
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "pref_05",
+    "category": "User Preferences",
+    "description": "Code indentation convention",
+    "conversation": ["I prefer tabs over spaces for indentation."],
+    "query": "Does the user prefer tabs or spaces for indentation?",
+    "expected_positive": "tabs",
+    "expected_negative": null,
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "proj_01",
+    "category": "Project Details",
+    "description": "Frontend framework of active app",
+    "conversation": ["I'm building a Next.js app."],
+    "query": "What app framework is the user building?",
+    "expected_positive": "Next.js",
+    "expected_negative": null,
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "proj_02",
+    "category": "Project Details",
+    "description": "Backend API framework",
+    "conversation": ["Our backend service is written in FastAPI."],
+    "query": "What backend framework does the service use?",
+    "expected_positive": "FastAPI",
+    "expected_negative": null,
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "proj_03",
+    "category": "Project Details",
+    "description": "Initial project milestone deadline",
+    "conversation": ["My project deadline is October 15."],
+    "query": "When is the project deadline?",
+    "expected_positive": "October 15",
+    "expected_negative": null,
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "proj_04",
+    "category": "Project Details",
+    "description": "Git repository hosting platform",
+    "conversation": ["We host our repository on GitHub."],
+    "query": "Where is the project git repository hosted?",
+    "expected_positive": "GitHub",
+    "expected_negative": null,
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "proj_05",
+    "category": "Project Details",
+    "description": "Cloud deployment platform",
+    "conversation": ["We deploy our infrastructure on AWS."],
+    "query": "Which cloud provider hosts the project infrastructure?",
+    "expected_positive": "AWS",
+    "expected_negative": null,
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "upd_01",
+    "category": "Updated Information",
+    "description": "Canonical project deadline postponement",
+    "conversation": [
+      "My project deadline is October 15.",
+      "Actually, the deadline moved to November 2."
+    ],
+    "query": "When is the project deadline?",
+    "expected_positive": "November 2",
+    "expected_negative": "October 15",
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "upd_02",
+    "category": "Updated Information",
+    "description": "Relocation from Berlin to Amsterdam",
+    "conversation": [
+      "I live in Berlin.",
+      "I recently moved to Amsterdam."
+    ],
+    "query": "Where does the user live currently?",
+    "expected_positive": "Amsterdam",
+    "expected_negative": "Berlin",
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "upd_03",
+    "category": "Updated Information",
+    "description": "Frontend framework switch to Svelte",
+    "conversation": [
+      "I'm building a Next.js app.",
+      "We switched the frontend framework to Svelte."
+    ],
+    "query": "What frontend framework is the user's app using?",
+    "expected_positive": "Svelte",
+    "expected_negative": "Next.js",
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "upd_04",
+    "category": "Updated Information",
+    "description": "Database preference migration to PostgreSQL",
+    "conversation": [
+      "I prefer MySQL.",
+      "We migrated our database to PostgreSQL."
+    ],
+    "query": "What database does the user prefer now?",
+    "expected_positive": "PostgreSQL",
+    "expected_negative": "MySQL",
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "upd_05",
+    "category": "Updated Information",
+    "description": "Operating system distribution upgrade",
+    "conversation": [
+      "I use Ubuntu 20.04.",
+      "I switched to Fedora 40."
+    ],
+    "query": "What operating system is the user running now?",
+    "expected_positive": "Fedora 40",
+    "expected_negative": "Ubuntu 20.04",
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "corr_01",
+    "category": "Contradictions & Corrections",
+    "description": "Email address correction",
+    "conversation": [
+      "My email address is john@oldcorp.com.",
+      "Correction: my email address is john@newcorp.com."
+    ],
+    "query": "What is the user's email address?",
+    "expected_positive": "john@newcorp.com",
+    "expected_negative": "john@oldcorp.com",
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "corr_02",
+    "category": "Contradictions & Corrections",
+    "description": "Beverage switch from coffee to tea",
+    "conversation": [
+      "I love drinking coffee.",
+      "Actually, I stopped drinking coffee and drink green tea now."
+    ],
+    "query": "What drink does the user currently drink?",
+    "expected_positive": "green tea",
+    "expected_negative": "coffee",
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "corr_03",
+    "category": "Contradictions & Corrections",
+    "description": "Server port change",
+    "conversation": [
+      "The API runs on port 8000.",
+      "Wait, we changed the API port to 5000."
+    ],
+    "query": "What port does the API run on?",
+    "expected_positive": "5000",
+    "expected_negative": "8000",
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "corr_04",
+    "category": "Contradictions & Corrections",
+    "description": "Career role transition",
+    "conversation": [
+      "I work as a frontend engineer.",
+      "I recently transitioned to an ML engineer role."
+    ],
+    "query": "What is the user's job role?",
+    "expected_positive": "ML engineer",
+    "expected_negative": "frontend engineer",
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "corr_05",
+    "category": "Contradictions & Corrections",
+    "description": "Release date reschedule",
+    "conversation": [
+      "The release is targeted for Q3.",
+      "Actually, the release is rescheduled to Q4."
+    ],
+    "query": "When is the project release targeted for?",
+    "expected_positive": "Q4",
+    "expected_negative": "Q3",
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "multi_01",
+    "category": "Multiple Relevant Memories",
+    "description": "Backend tech stack multi-fact query",
+    "conversation": [
+      "My primary programming language is Python.",
+      "Our backend service is written in FastAPI.",
+      "I prefer PostgreSQL over MySQL."
+    ],
+    "query": "Tell me about the user's backend tech stack.",
+    "expected_positive": "FastAPI",
+    "expected_negative": null,
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "multi_02",
+    "category": "Multiple Relevant Memories",
+    "description": "Developer environment summary",
+    "conversation": [
+      "I use Arch Linux.",
+      "My favorite editor is Neovim.",
+      "My default shell is zsh."
+    ],
+    "query": "What OS and tools does the user use for their developer setup?",
+    "expected_positive": "Arch Linux",
+    "expected_negative": null,
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "multi_03",
+    "category": "Multiple Relevant Memories",
+    "description": "Full-stack project architecture",
+    "conversation": [
+      "I'm building a Next.js app.",
+      "Our backend service is written in FastAPI.",
+      "We deploy our infrastructure on AWS."
+    ],
+    "query": "What is the full-stack architecture of the user's app?",
+    "expected_positive": "Next.js",
+    "expected_negative": null,
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "multi_04",
+    "category": "Multiple Relevant Memories",
+    "description": "User development preferences overview",
+    "conversation": [
+      "I prefer dark mode.",
+      "My favorite editor is Neovim.",
+      "I prefer tabs over spaces for indentation."
+    ],
+    "query": "What are the user's coding and UI preferences?",
+    "expected_positive": "Neovim",
+    "expected_negative": null,
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "multi_05",
+    "category": "Multiple Relevant Memories",
+    "description": "Hardware and system specs overview",
+    "conversation": [
+      "My laptop is a ThinkPad X1 Carbon.",
+      "I use Arch Linux."
+    ],
+    "query": "What computer and OS does the user have?",
+    "expected_positive": "ThinkPad",
+    "expected_negative": null,
+    "is_unknown": false,
+    "min_expected_results": 1
+  },
+  {
+    "id": "unk_01",
+    "category": "Unknown Answers",
+    "description": "Canonical negative query: favorite food",
+    "conversation": [
+      "I use Arch Linux.",
+      "I'm building a Next.js app.",
+      "My project deadline is October 15."
+    ],
+    "query": "What is the user's favourite food?",
+    "expected_positive": null,
+    "expected_negative": null,
+    "is_unknown": true,
+    "min_expected_results": 0
+  },
+  {
+    "id": "unk_02",
+    "category": "Unknown Answers",
+    "description": "Unknown pet inquiry",
+    "conversation": [
+      "I code in Python.",
+      "I prefer PostgreSQL over MySQL."
+    ],
+    "query": "What is the name of the user's pet dog?",
+    "expected_positive": null,
+    "expected_negative": null,
+    "is_unknown": true,
+    "min_expected_results": 0
+  },
+  {
+    "id": "unk_03",
+    "category": "Unknown Answers",
+    "description": "Unknown automobile inquiry",
+    "conversation": [
+      "I live in Berlin.",
+      "I work as an ML engineer."
+    ],
+    "query": "What car model does the user drive?",
+    "expected_positive": null,
+    "expected_negative": null,
+    "is_unknown": true,
+    "min_expected_results": 0
+  },
+  {
+    "id": "unk_04",
+    "category": "Unknown Answers",
+    "description": "Unknown financial / salary inquiry",
+    "conversation": [
+      "I'm building a Next.js app.",
+      "Our backend service is written in FastAPI."
+    ],
+    "query": "How much is the user's annual salary?",
+    "expected_positive": null,
+    "expected_negative": null,
+    "is_unknown": true,
+    "min_expected_results": 0
+  },
+  {
+    "id": "unk_05",
+    "category": "Unknown Answers",
+    "description": "Unknown vacation destination inquiry",
+    "conversation": [
+      "My default shell is zsh.",
+      "My laptop is a ThinkPad X1 Carbon."
+    ],
+    "query": "Where is the user going for summer vacation?",
+    "expected_positive": null,
+    "expected_negative": null,
+    "is_unknown": true,
+    "min_expected_results": 0
+  }
+]
