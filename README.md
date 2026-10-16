@@ -23,7 +23,7 @@
 [![SentenceTransformers](https://img.shields.io/badge/SentenceTransformers-all--MiniLM--L6--v2-FFA116?style=flat-square&logo=huggingface&logoColor=white)](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.65+-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io)
 [![uv](https://img.shields.io/badge/Package_Manager-uv-DE5FE9?style=flat-square&logo=astral&logoColor=white)](https://github.com/astral-sh/uv)
-[![Tests](https://img.shields.io/badge/Pytest-52%2F52%20Passed-10B981?style=flat-square&logo=pytest&logoColor=white)](https://docs.pytest.org)
+[![Tests](https://img.shields.io/badge/Pytest-53%2F53%20Passed-10B981?style=flat-square&logo=pytest&logoColor=white)](https://docs.pytest.org)
 [![Benchmark Accuracy](https://img.shields.io/badge/Benchmark_Accuracy-100%25-6366F1?style=flat-square&logo=target&logoColor=white)](#-evaluation-benchmark-suite)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
@@ -52,10 +52,10 @@
 | **Intelligent Small Talk Filter** | Deterministically classifies conversational pleasantries (*"ok thanks"*, *"sounds good"*, *"hello"*) and ignores them from vector memory storage while logging messages for context. |
 | **Structured Fact Extraction** | Normalizes natural language into canonical `(subject, attribute, value)` triplets across 5 memory types (`fact`, `preference`, `project_detail`, `event`, `goal`). |
 | **Deterministic Conflict Resolution** | Detects updates and contradictions using subject-attribute collision and linguistic update cues (*"actually"*, *"moved to"*, *"switched to"*). Supersedes old facts and links them via `replaced_by` rather than destructively deleting them. |
-| **Calibrated Hybrid Retrieval** | Blends dense semantic vector search (ChromaDB cosine similarity) with lexical keyword matching (BM25Okapi) and importance scores: $\max(S_{\text{sem}}, \alpha S_{\text{sem}} + (1-\alpha)S_{\text{bm25}}) + \beta(\text{importance} - 0.5)$. |
+| **Prioritized Semantic Retrieval** | Prioritizes dense semantic vector search (85% weight) with supporting BM25Okapi lexical matching (15% boost) and importance scores: $\max(S_{\text{sem}}, \alpha S_{\text{sem}} + (1-\alpha)S_{\text{bm25}}) + \beta(\text{importance} - 0.5)$ with default $\alpha = 0.85$. |
 | **Strict Unknown Rejection** | Calibrated similarity threshold ($0.52$) guarantees queries about unmentioned topics (*"What is the user's favourite food?"*) strictly return an empty list `[]` instead of hallucinating unrelated memories. |
 | **Ultra-Low Latency on CPU** | Measures **~0.12 ms** p50 ingestion latency and **~1.53 ms** p50 hybrid recall latency with over **400 ops/sec** throughput on a standard laptop CPU. |
-| **Dual User Interfaces** | Includes a full-featured **Streamlit Web Console** with a 1-click benchmark evaluator and a glassmorphic **Dark-Mode FastAPI Web Dashboard**. |
+| **Dual User Interfaces** | Includes a full-featured **Streamlit Web Console** with live semantic weight knobs and a glassmorphic **Dark-Mode FastAPI Web Dashboard**. |
 
 ---
 
@@ -112,9 +112,10 @@ flowchart TD
     end
 
     subgraph ConflictResolution ["2. CONFLICT RESOLUTION & LINEAGE"]
-        Triplet --> CollCheck{"Conflict Detected?\n1. Exact (subject, attribute) collision\n2. Update cue ('actually', 'moved to')\n3. Semantic cosine collision > 0.82"}
-        CollCheck -->|No Conflict| NewFact["Create Active Memory"]
-        CollCheck -->|Collision Found| Superseder["Supersede Existing Record:\n- Set old.status = 'superseded'\n- Set old.replaced_by = new.id\n- Sync ChromaDB metadata status"]
+        Triplet --> CollCheck{"Conflict Candidate Found?\n1. Exact (subject, attribute) in SQLite\n2. Update cue ('actually', 'switched to')\n3. Vector search on update cue"}
+        CollCheck --> SimCheck{"Semantic Cosine Similarity\n>= conflict_threshold (default: 0.50)?"}
+        SimCheck -->|No: Unrelated Fact| NewFact["Create Independent Active Memory\n(Preserve older memories)"]
+        SimCheck -->|Yes: Contradiction / Revision| Superseder["Supersede Existing Record:\n- Set old.status = 'superseded'\n- Set old.replaced_by = new.id\n- Sync ChromaDB metadata status"]
         Superseder --> NewFact
     end
 
@@ -321,7 +322,8 @@ curl -X POST "http://127.0.0.1:8000/recall" \
   -d '{
     "query": "When is the project deadline?",
     "top_k": 5,
-    "threshold": 0.52
+    "threshold": 0.52,
+    "alpha": 0.85
   }'
 ```
 
@@ -458,14 +460,15 @@ MemEngine employs a multi-stage cognitive filter:
 ---
 
 ### 3. How do you handle updated or contradictory information?
-Handling contradictions is where standard vector search fails: *"The deadline is October 15"* and *"The deadline is November 2"* have very high cosine similarity ($>0.85$), causing naive vector databases to retrieve both and confuse downstream language models.
+Handling contradictions is where standard vector search fails: *"The deadline is October 15"* and *"The deadline is November 2"* have very high cosine similarity ($>0.85$), causing naive vector databases to retrieve both and confuse downstream language models. Conversely, naive key-matching causes distinct, unrelated facts under generic categories (e.g. food preference vs rock music) to mistakenly supersede each other.
 
-MemEngine solves this with **Deterministic Lineage Tracking**:
-1. **Collision Detection**: The `ConflictResolver` checks whether an active memory already shares the same `(subject, attribute)` pair (e.g. `(project, deadline)`).
-2. **Linguistic Correction Triggers**: Explicit correction phrases (*"actually"*, *"moved to"*, *"switched to"*, *"no longer"*, *"changed to"*) flag incoming facts as prospective replacements.
-3. **Semantic Contradiction Matching**: If exact keys are not present, ChromaDB checks for high semantic similarity ($>0.82$) in the same category domain.
-4. **Immutable State Transition**: The outdated memory is **never silently erased**. Its status transitions to `superseded`, its `replaced_by` column is populated with the new memory's ID, and ChromaDB updates its vector metadata to `status="superseded"`.
-5. **Retrieval Exclusion**: Recall queries enforce strict filtering (`where={"status": "active"}`). The outdated fact is completely excluded from recall, but preserved in SQLite for auditability.
+MemEngine solves this with **Deterministic Lineage Tracking with Semantic Similarity Gating**:
+1. **Candidate Collision Query**: The `ConflictResolver` checks whether active memories share the candidate's `(subject, attribute)` pair (e.g. `(project, deadline)`).
+2. **Idempotent Confirmation**: If an active candidate already holds the exact same value, the fact is confirmed without generating duplicate memory clutter.
+3. **Semantic Similarity Gating**: A candidate memory only supersedes an existing active memory if their cosine similarity meets or exceeds `conflict_threshold` (default `0.50`, configurable via `MEMENGINE_CONFLICT_THRESHOLD` and the Streamlit UI slider). Unrelated messages (e.g. food vs music, similarity `~0.35`) are preserved as independent active facts.
+4. **Linguistic Correction Triggers**: Explicit correction phrases (*"actually"*, *"moved to"*, *"switched to"*, *"no longer"*, *"changed to"*) flag incoming facts as prospective replacements and search active vector candidates requiring $\ge \text{conflict\_threshold}$.
+5. **Immutable State Transition**: The outdated memory is **never silently erased**. Its status transitions to `superseded`, its `replaced_by` column is populated with the new memory's ID, and ChromaDB updates its vector metadata to `status="superseded"`.
+6. **Retrieval Exclusion**: Recall queries enforce strict filtering (`where={"status": "active"}`). The outdated fact is completely excluded from recall, but preserved in SQLite for auditability.
 
 ---
 
@@ -544,7 +547,7 @@ uv run pytest -v
 ```
 ============================= test session starts =============================
 platform win32 -- Python 3.14.3, pytest-9.1.1, pluggy-1.6.0
-collected 52 items
+collected 55 items
 
 tests/test_api.py::test_health_check PASSED                              [  1%]
 tests/test_api.py::test_dashboard_served PASSED                          [  3%]
@@ -554,23 +557,24 @@ tests/test_api.py::test_canonical_full_api_flow PASSED                   [  9%]
 tests/test_api.py::test_delete_memory_endpoint PASSED                    [ 11%]
 tests/test_api.py::test_direct_structured_memory_creation PASSED         [ 13%]
 tests/test_evaluation.py::test_load_evaluation_cases PASSED              [ 15%]
-tests/test_evaluation.py::test_evaluate_single_positive_case PASSED      [ 17%]
-tests/test_evaluation.py::test_evaluate_single_unknown_negative_case PASSED [ 19%]
-tests/test_evaluation.py::test_evaluate_single_supersede_case PASSED     [ 21%]
-tests/test_ingestion.py::test_small_talk_detection[ok thanks] PASSED     [ 23%]
+tests/test_evaluation.py::test_evaluate_single_positive_case PASSED      [ 16%]
+tests/test_evaluation.py::test_evaluate_single_unknown_negative_case PASSED [ 18%]
+tests/test_evaluation.py::test_evaluate_single_supersede_case PASSED     [ 20%]
+tests/test_ingestion.py::test_small_talk_detection[ok thanks] PASSED     [ 22%]
 ...
-tests/test_retrieval.py::test_canonical_recall_os_query PASSED           [ 59%]
-tests/test_retrieval.py::test_canonical_recall_deadline_query PASSED     [ 61%]
-tests/test_retrieval.py::test_canonical_recall_unknown_query_rejected PASSED [ 63%]
-tests/test_retrieval.py::test_custom_top_k_parameter PASSED              [ 65%]
-tests/test_retrieval.py::test_strict_custom_threshold PASSED             [ 67%]
-tests/test_retrieval.py::test_hybrid_search_boosts_exact_keywords PASSED [ 69%]
+tests/test_retrieval.py::test_canonical_recall_os_query PASSED           [ 58%]
+tests/test_retrieval.py::test_canonical_recall_deadline_query PASSED     [ 60%]
+tests/test_retrieval.py::test_canonical_recall_unknown_query_rejected PASSED [ 62%]
+tests/test_retrieval.py::test_custom_top_k_parameter PASSED              [ 64%]
+tests/test_retrieval.py::test_strict_custom_threshold PASSED             [ 66%]
+tests/test_retrieval.py::test_hybrid_search_boosts_exact_keywords PASSED [ 67%]
+tests/test_retrieval.py::test_semantic_weight_priority PASSED            [ 69%]
 ...
 tests/test_updates.py::test_canonical_four_messages_lifecycle PASSED     [ 96%]
 tests/test_updates.py::test_idempotent_duplicate_message PASSED          [ 98%]
 tests/test_updates.py::test_direct_structured_fact_insertion PASSED      [100%]
 
-================= 52 passed, 2 warnings in 102.75s ==================
+================== 53 passed, 2 warnings in 95.26s ==================
 ```
 
 ---

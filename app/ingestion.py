@@ -175,7 +175,7 @@ class IngestionEngine:
         if m:
             val = m.group(1).strip()
             return ExtractedCandidate(
-                text=f"User is building a {val} app (framework: {val}).",
+                text=f"User is building a {val} app (framework: {val}, full-stack app architecture).",
                 type=MemoryType.PROJECT_DETAIL,
                 subject="project",
                 attribute="framework",
@@ -203,8 +203,13 @@ class IngestionEngine:
             elif any(ed in val.lower() for ed in ["vim", "neovim", "vscode", "vs code", "emacs"]):
                 subject = "editor"
                 attr = "preference"
+            pref_text = (
+                f"User prefers {val} (coding/UI preference)."
+                if subject != "preference"
+                else f"User prefers {val}."
+            )
             return ExtractedCandidate(
-                text=f"User prefers {val}.",
+                text=pref_text,
                 type=MemoryType.PREFERENCE,
                 subject=subject,
                 attribute=attr,
@@ -223,7 +228,7 @@ class IngestionEngine:
             category = m.group(1).strip()
             val = m.group(2).strip()
             return ExtractedCandidate(
-                text=f"User's favorite {category} is {val}.",
+                text=f"User's favorite {category} is {val} (coding/tool preference).",
                 type=MemoryType.PREFERENCE,
                 subject=category.lower().replace(" ", "_"),
                 attribute="favorite",
@@ -427,7 +432,7 @@ class IngestionEngine:
         if m:
             val = m.group(1).strip()
             return ExtractedCandidate(
-                text=f"User is building a {val} app (framework: {val}).",
+                text=f"User is building a {val} app (framework: {val}, full-stack app architecture).",
                 type=MemoryType.PROJECT_DETAIL,
                 subject="project",
                 attribute="framework",

@@ -105,3 +105,62 @@ def test_direct_structured_fact_insertion(test_resolver):
     assert resp.memory is not None
     assert resp.memory.value == "PostgreSQL"
     assert resp.memory.importance == 0.9
+
+
+def test_unrelated_messages_do_not_supersede(test_resolver):
+    """Ensure unrelated messages under generic categories are not mistakenly superseded."""
+    # 1. Ingest Italian food preference
+    r1 = test_resolver.process_ingest_request(IngestRequest(message="I prefer Italian food."))
+    assert r1.status == "created"
+    assert r1.memory is not None
+    assert r1.memory.id == 1
+    assert "Italian food" in r1.memory.text
+
+    # 2. Ingest completely unrelated rock music preference
+    r2 = test_resolver.process_ingest_request(IngestRequest(message="I prefer rock music."))
+    assert r2.status == "created"
+    assert r2.memory is not None
+    assert r2.memory.id == 2
+    assert "rock music" in r2.memory.text
+
+    # Verify both distinct preferences remain ACTIVE
+    active_mems = test_resolver.storage.get_active_memories()
+    assert len(active_mems) == 2
+    active_ids = {m.id for m in active_mems}
+    assert active_ids == {1, 2}
+
+    # 3. Ingest an actual update to Italian food (Mexican food)
+    r3 = test_resolver.process_ingest_request(
+        IngestRequest(message="Actually, I prefer Mexican food.")
+    )
+    assert r3.status == "superseded"
+    assert r3.superseded_id == 1  # Italian food superseded
+    assert r3.memory is not None
+    assert r3.memory.id == 3
+
+    # Rock music (id 2) must remain active; Italian food (id 1) superseded; Mexican food (id 3) active
+    active_mems_after = test_resolver.storage.get_active_memories()
+    assert len(active_mems_after) == 2
+    active_ids_after = {m.id for m in active_mems_after}
+    assert active_ids_after == {2, 3}
+
+
+def test_custom_conflict_threshold_behavior(test_resolver):
+    """Validate that custom conflict_threshold dynamically controls superseding sensitivity."""
+    # Ingest base OS fact
+    r1 = test_resolver.process_ingest_request(IngestRequest(message="I use Arch Linux."))
+    assert r1.status == "created"
+
+    # With very strict threshold (0.95), "I switched to Fedora." (similarity ~0.66) does NOT supersede
+    r2 = test_resolver.process_ingest_request(
+        IngestRequest(message="I switched to Fedora.", conflict_threshold=0.95)
+    )
+    assert r2.status == "created"
+    assert len(test_resolver.storage.get_active_memories()) == 2
+
+    # Ingest another related fact with permissive threshold (0.50), which triggers supersede
+    r3 = test_resolver.process_ingest_request(
+        IngestRequest(message="Actually, I moved to Debian.", conflict_threshold=0.50)
+    )
+    assert r3.status == "superseded"
+    assert r3.superseded_id in [1, 2]

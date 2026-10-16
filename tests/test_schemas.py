@@ -22,7 +22,7 @@ def test_settings_defaults():
     assert settings.db_path.endswith("memengine.db")
     assert "MiniLM" in settings.embedding_model_name
     assert settings.default_similarity_threshold == 0.52
-    assert settings.hybrid_alpha == 0.75
+    assert settings.hybrid_alpha == 0.85
     assert settings.default_top_k == 5
 
 
@@ -69,16 +69,18 @@ def test_memory_record_superseded_validation():
 
 
 def test_ingest_request_cleaning():
-    req = IngestRequest(message="   I am building a Next.js app.   ")
+    req = IngestRequest(message="   I am building a Next.js app.   ", conflict_threshold=0.65)
     assert req.message == "I am building a Next.js app."
+    assert req.conflict_threshold == 0.65
 
     blank_req = IngestRequest(message="    ")
     assert blank_req.message is None
 
 
 def test_recall_request_and_response():
-    req = RecallRequest(query="When is the project deadline?", top_k=3)
+    req = RecallRequest(query="When is the project deadline?", top_k=3, alpha=0.9)
     assert req.top_k == 3
+    assert req.alpha == 0.9
 
     item = RecallItem(
         id=11,

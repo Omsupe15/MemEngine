@@ -92,7 +92,8 @@ class RecallEngine:
                 pass
 
         # 4. Hybrid score combination & importance weighting
-        alpha = self.settings.hybrid_alpha
+        alpha = request.alpha if request.alpha is not None else self.settings.hybrid_alpha
+        alpha = max(0.0, min(1.0, alpha))
         beta = self.settings.importance_weight
 
         scored_candidates: List[RecallItem] = []

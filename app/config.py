@@ -39,8 +39,13 @@ class Settings:
             os.getenv("MEMENGINE_SIMILARITY_THRESHOLD", "0.52")
         )
     )
+    conflict_similarity_threshold: float = field(
+        default_factory=lambda: float(
+            os.getenv("MEMENGINE_CONFLICT_THRESHOLD", "0.50")
+        )
+    )
     hybrid_alpha: float = field(
-        default_factory=lambda: float(os.getenv("MEMENGINE_HYBRID_ALPHA", "0.75"))
+        default_factory=lambda: float(os.getenv("MEMENGINE_HYBRID_ALPHA", "0.85"))
     )
     importance_weight: float = field(
         default_factory=lambda: float(os.getenv("MEMENGINE_IMPORTANCE_WEIGHT", "0.10"))

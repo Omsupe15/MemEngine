@@ -87,3 +87,15 @@ def test_hybrid_search_boosts_exact_keywords(populated_engine):
     assert len(resp.memories) >= 1
     assert "Next.js" in resp.memories[0].text
     assert resp.memories[0].score > 0.70
+
+
+def test_semantic_weight_priority(populated_engine):
+    # Paraphrased query with no exact keyword overlap with "User uses Arch Linux."
+    # With high semantic weight (alpha=0.95), dense semantic similarity dominates
+    resp = populated_engine.recall(
+        RecallRequest(query="Which operating system platform is the person running?", top_k=3, alpha=0.95)
+    )
+    assert len(resp.memories) >= 1
+    assert "Arch Linux" in resp.memories[0].text
+    assert resp.memories[0].score > 0.60
+

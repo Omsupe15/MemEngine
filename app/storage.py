@@ -124,22 +124,27 @@ class SQLiteStorage:
                 return None
             return self._row_to_record(row)
 
-    def find_active_candidate(self, subject: str, attribute: str) -> Optional[MemoryRecord]:
-        """Find an existing active memory matching (subject, attribute)."""
+    def find_active_candidates(
+        self, subject: str, attribute: str
+    ) -> List[MemoryRecord]:
+        """Find all existing active memories matching (subject, attribute) ordered by id DESC."""
         with self._get_connection() as conn:
-            row = conn.execute(
+            rows = conn.execute(
                 """
                 SELECT * FROM memories 
                 WHERE LOWER(subject) = LOWER(?) 
                   AND LOWER(attribute) = LOWER(?) 
                   AND status = 'active'
-                ORDER BY id DESC LIMIT 1;
+                ORDER BY id DESC;
                 """,
                 (subject, attribute),
-            ).fetchone()
-            if not row:
-                return None
-            return self._row_to_record(row)
+            ).fetchall()
+            return [self._row_to_record(row) for row in rows]
+
+    def find_active_candidate(self, subject: str, attribute: str) -> Optional[MemoryRecord]:
+        """Find an existing active memory matching (subject, attribute)."""
+        candidates = self.find_active_candidates(subject=subject, attribute=attribute)
+        return candidates[0] if candidates else None
 
     def supersede_memory(self, old_id: int, new_id: int) -> None:
         """Mark an old memory as superseded and link replaced_by to new_id."""
@@ -310,6 +315,12 @@ class StorageManager:
     def get_memory(self, memory_id: int) -> Optional[MemoryRecord]:
         """Retrieve memory by ID."""
         return self.sqlite.get_memory(memory_id)
+
+    def find_active_candidates(
+        self, subject: str, attribute: str
+    ) -> List[MemoryRecord]:
+        """Find all active memory candidates by subject and attribute."""
+        return self.sqlite.find_active_candidates(subject=subject, attribute=attribute)
 
     def find_active_candidate(self, subject: str, attribute: str) -> Optional[MemoryRecord]:
         """Find active memory candidate by subject and attribute."""

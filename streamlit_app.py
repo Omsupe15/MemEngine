@@ -93,7 +93,7 @@ with st.sidebar:
     st.metric("Total Stored", total_count)
 
     st.divider()
-    st.markdown("### ⚙️ Retrieval Knobs")
+    st.markdown("### ⚙️ Engine Knobs")
     top_k = st.slider("Top K", min_value=1, max_value=10, value=5, step=1)
     threshold = st.slider(
         "Relevance Cutoff Threshold",
@@ -103,14 +103,30 @@ with st.sidebar:
         step=0.02,
         help="Scores below this cutoff are rejected as unknown.",
     )
+    alpha = st.slider(
+        "Semantic Weight (Alpha)",
+        min_value=0.50,
+        max_value=1.00,
+        value=0.85,
+        step=0.05,
+        help="Weight assigned to dense semantic search vs BM25 lexical search (1.0 = 100% semantic).",
+    )
+    conflict_threshold = st.slider(
+        "Conflict / Supersede Threshold",
+        min_value=0.25,
+        max_value=0.95,
+        value=0.50,
+        step=0.05,
+        help="Minimum semantic similarity required between existing and new memory before superseding (default: 0.50).",
+    )
 
     st.divider()
     st.markdown("### ⚡ Quick Demo")
     if st.button("🚀 Load 4 Canonical Messages", use_container_width=True):
-        resolver.process_ingest_request(IngestRequest(message="I use Arch Linux."))
-        resolver.process_ingest_request(IngestRequest(message="I'm building a Next.js app."))
-        resolver.process_ingest_request(IngestRequest(message="My project deadline is October 15."))
-        resolver.process_ingest_request(IngestRequest(message="Actually, the deadline moved to November 2."))
+        resolver.process_ingest_request(IngestRequest(message="I use Arch Linux.", conflict_threshold=conflict_threshold))
+        resolver.process_ingest_request(IngestRequest(message="I'm building a Next.js app.", conflict_threshold=conflict_threshold))
+        resolver.process_ingest_request(IngestRequest(message="My project deadline is October 15.", conflict_threshold=conflict_threshold))
+        resolver.process_ingest_request(IngestRequest(message="Actually, the deadline moved to November 2.", conflict_threshold=conflict_threshold))
         st.success("Loaded Arch Linux, Next.js, and November 2 deadline!")
         st.rerun()
 
@@ -160,7 +176,7 @@ with tab_recall:
     )
 
     if query_input:
-        req = RecallRequest(query=query_input, top_k=top_k, threshold=threshold)
+        req = RecallRequest(query=query_input, top_k=top_k, threshold=threshold, alpha=alpha)
         response = recall_engine.recall(req)
 
         if response.memories:
@@ -195,7 +211,10 @@ with tab_recall:
 # -------------------------------------------------------------
 with tab_remember:
     st.subheader("Ingest Conversation Turn (Remember)")
-    st.caption("Sends a message to the engine. Filters out small talk, extracts structured facts, and detects updates/contradictions.")
+    st.caption(
+        f"Sends a message to the engine. Filters out small talk, extracts structured facts, and detects updates/contradictions "
+        f"(active conflict supersede threshold: `{conflict_threshold:.2f}`)."
+    )
 
     st.markdown("**Try Canonical Messages:**")
     cm_cols = st.columns(5)
@@ -220,7 +239,7 @@ with tab_remember:
         submitted = st.form_submit_button("Remember Message", use_container_width=True)
 
         if submitted and msg_text.strip():
-            req = IngestRequest(message=msg_text.strip())
+            req = IngestRequest(message=msg_text.strip(), conflict_threshold=conflict_threshold)
             res = resolver.process_ingest_request(req)
 
             if res.status == "created":
@@ -309,17 +328,17 @@ with tab_workflow:
         with results_container:
             st.write("### Step 1: Ingesting Messages")
             
-            r1 = resolver.process_ingest_request(IngestRequest(message="I use Arch Linux."))
+            r1 = resolver.process_ingest_request(IngestRequest(message="I use Arch Linux.", conflict_threshold=conflict_threshold))
             st.write(f"1. Ingest Arch Linux -> Status: **{r1.status}** (`#{r1.memory.id}`)")
             
-            r2 = resolver.process_ingest_request(IngestRequest(message="I'm building a Next.js app."))
+            r2 = resolver.process_ingest_request(IngestRequest(message="I'm building a Next.js app.", conflict_threshold=conflict_threshold))
             st.write(f"2. Ingest Next.js -> Status: **{r2.status}** (`#{r2.memory.id}`)")
             
-            r3 = resolver.process_ingest_request(IngestRequest(message="My project deadline is October 15."))
+            r3 = resolver.process_ingest_request(IngestRequest(message="My project deadline is October 15.", conflict_threshold=conflict_threshold))
             id_oct = r3.memory.id
             st.write(f"3. Ingest Oct 15 -> Status: **{r3.status}** (`#{id_oct}`)")
             
-            r4 = resolver.process_ingest_request(IngestRequest(message="Actually, the deadline moved to November 2."))
+            r4 = resolver.process_ingest_request(IngestRequest(message="Actually, the deadline moved to November 2.", conflict_threshold=conflict_threshold))
             id_nov = r4.memory.id
             st.write(f"4. Ingest Nov 2 Update -> Status: **{r4.status}** (Replaced `#{r4.superseded_id}` with `#{id_nov}`)")
             

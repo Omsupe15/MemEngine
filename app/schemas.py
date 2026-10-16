@@ -124,6 +124,12 @@ class IngestRequest(BaseModel):
         le=1.0,
         description="Importance score override (0.0 to 1.0)",
     )
+    conflict_threshold: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Semantic similarity threshold required to supersede an existing memory (0.0 to 1.0; defaults to config conflict_similarity_threshold)",
+    )
 
     @field_validator("message", "text")
     @classmethod
@@ -172,6 +178,12 @@ class RecallRequest(BaseModel):
         ge=0.0,
         le=1.0,
         description="Relevance cutoff threshold; scores below this are discarded",
+    )
+    alpha: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Semantic search weight override (0.0 to 1.0; 1.0 is pure semantic, defaults to config hybrid_alpha)",
     )
 
 

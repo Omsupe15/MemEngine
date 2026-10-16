@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Optional
+from app.config import get_settings
 from app.ingestion import ExtractedCandidate, IngestionEngine, get_ingestion_engine
 from app.schemas import (
     IngestRequest,
@@ -30,6 +31,7 @@ class ConflictResolver:
     ) -> None:
         self.storage = storage or get_storage_manager()
         self.ingestion = ingestion or get_ingestion_engine()
+        self.settings = get_settings()
 
     def process_ingest_request(self, req: IngestRequest) -> IngestResponse:
         """Process an incoming IngestRequest (message or direct fact) through conflict resolution."""
@@ -45,7 +47,11 @@ class ConflictResolver:
                 is_update_cue=False,
             )
             source_msg = req.text
-            return self._resolve_and_save(candidate, source_msg)
+            return self._resolve_and_save(
+                candidate,
+                source_msg,
+                conflict_threshold=req.conflict_threshold,
+            )
 
         # 2. Conversational message extraction path
         if req.message:
@@ -74,7 +80,11 @@ class ConflictResolver:
             if req.importance is not None:
                 candidate.importance = req.importance
 
-            return self._resolve_and_save(candidate, req.message)
+            return self._resolve_and_save(
+                candidate,
+                req.message,
+                conflict_threshold=req.conflict_threshold,
+            )
 
         return IngestResponse(
             status="ignored",
@@ -87,33 +97,70 @@ class ConflictResolver:
         self,
         candidate: ExtractedCandidate,
         source_message: str,
+        conflict_threshold: Optional[float] = None,
     ) -> IngestResponse:
         """Evaluate candidate against active memories, supersede conflicts, and persist."""
         now = datetime.now(timezone.utc)
+        effective_threshold = (
+            conflict_threshold
+            if conflict_threshold is not None
+            else self.settings.conflict_similarity_threshold
+        )
 
-        # Step 1: Look for exact active candidate match on (subject, attribute)
-        existing = self.storage.find_active_candidate(
+        existing: Optional[MemoryRecord] = None
+
+        # Step 1: Look for active candidates with matching (subject, attribute)
+        active_candidates = self.storage.find_active_candidates(
             subject=candidate.subject,
             attribute=candidate.attribute,
         )
 
-        # Step 2: If no exact match on (subject, attribute), check semantic collision if update cue present
+        # 1a. Idempotent check: if any active candidate already has the identical value, confirm it
+        for cand in active_candidates:
+            if cand.value.strip().lower() == candidate.value.strip().lower():
+                self.storage.sqlite.log_message(source_message, memories_count=0)
+                return IngestResponse(
+                    status="created",
+                    memory=cand,
+                    superseded_id=None,
+                    message=f"Memory already active with identical value: {cand.text}",
+                )
+
+        # 1b. Check if any active candidate with matching (subject, attribute) meets conflict similarity threshold
+        candidate_vector = self.storage.embedding_engine.embed_text(candidate.text)
+        best_cand: Optional[MemoryRecord] = None
+        best_sim = -1.0
+
+        for cand in active_candidates:
+            cand_vector = self.storage.embedding_engine.embed_text(cand.text)
+            sim = self.storage.embedding_engine.cosine_similarity(cand_vector, candidate_vector)
+            if sim >= effective_threshold and sim > best_sim:
+                best_sim = sim
+                best_cand = cand
+
+        if best_cand is not None:
+            existing = best_cand
+
+        # Step 2: If no (subject, attribute) match met the threshold, check vector search if update cue present
         if existing is None and candidate.is_update_cue:
             active_matches = self.storage.search_active_vectors(
                 query=candidate.text,
-                top_k=3,
+                top_k=5,
             )
+            best_match_rec: Optional[MemoryRecord] = None
+            best_match_score = -1.0
+
             for match in active_matches:
-                meta = match.get("metadata", {})
-                if (
-                    meta.get("subject") == candidate.subject
-                    or match.get("score", 0.0) >= 0.82
-                ):
+                score = match.get("score", 0.0)
+                if score >= effective_threshold and score > best_match_score:
                     matched_id = match["memory_id"]
                     found_rec = self.storage.get_memory(matched_id)
                     if found_rec and found_rec.status == MemoryStatus.ACTIVE:
-                        existing = found_rec
-                        break
+                        best_match_score = score
+                        best_match_rec = found_rec
+
+            if best_match_rec is not None:
+                existing = best_match_rec
 
         # Step 3: Handle detected existing active memory
         if existing is not None:
